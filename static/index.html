@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mekho</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <main class="container">
+
+    <!-- Animated orb — drawn by app.js on a Canvas element.
+         The orb reacts to mic/playback amplitude and changes color
+         depending on the current assistant state. -->
+    <canvas id="orb-canvas" aria-hidden="true"></canvas>
+
+    <!-- Status line: "Press and hold to talk", "Thinking…", etc. -->
+    <p id="status-text" class="status-text">Connecting…</p>
+
+    <!-- What the user said (filled by "transcript" messages from the server) -->
+    <p id="transcript-text" class="transcript-text"></p>
+
+    <!-- Streamed assistant reply (filled sentence-by-sentence as audio plays) -->
+    <p id="reply-text" class="reply-text"></p>
+
+    <!-- Push-to-talk button — hold to record, release to send.
+         The data-state attribute ("idle" | "recording" | "processing" | "speaking")
+         is kept in sync by app.js so CSS can style each state independently. -->
+    <button
+      id="talk-btn"
+      class="talk-btn"
+      aria-label="Push to talk"
+      data-state="idle"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+           fill="currentColor" width="28" height="28" aria-hidden="true">
+        <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/>
+        <path d="M19 10a1 1 0 0 1 2 0 9 9 0 0 1-18 0 1 1 0 1 1 2 0 7 7 0 0 0 14 0z"/>
+        <path d="M11 20h2v3h-2z"/>
+      </svg>
+    </button>
+
+  </main>
+
+  <!--
+    Load order matters:
+      1. ui.js   — defines UIController (must exist before app.js runs)
+      2. app.js  — orchestration: WebSocket, recording, playback, canvas animation
+    Both use defer so the DOM is fully parsed before either script executes.
+  -->
+  <!-- Load order matters: 1. ui.js  2. orb.js  3. audioPlayer.js  4. app.js -->
+  <script src="/static/ui.js"          defer></script>
+  <script src="/static/orb.js"         defer></script>
+  <script src="/static/audioPlayer.js" defer></script>
+  <script src="/static/app.js"         defer></script>
+</body>
+</html>

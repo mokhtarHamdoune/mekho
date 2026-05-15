@@ -1,0 +1,194 @@
+/* =============================================================================
+   style.css — Mekho Voice Assistant
+   =============================================================================
+
+   Layout
+   ──────
+   Single centered column:
+     canvas  (animated orb)
+     status  (one-liner state description)
+     transcript  (what the user said)
+     reply   (streamed assistant text)
+     button  (push-to-talk)
+
+   Orb state classes
+   ─────────────────
+   The <button id="talk-btn"> carries a data-state attribute that app.js
+   updates as the assistant moves through its states.  We use that attribute
+   to change the button appearance (color + shadow) so the visual feedback
+   is consistent with the canvas orb above it.
+
+   data-state values  →  "idle" | "recording" | "processing" | "speaking"
+   ============================================================================= */
+
+
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: #0b0c14;
+  color: #e0e4f0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+
+/* ── Container ─────────────────────────────────────────────────────────────── */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 480px;
+}
+
+
+/* ── Orb canvas ────────────────────────────────────────────────────────────── */
+
+/* The canvas is 400×400 logical pixels (set by app.js) but we display it
+   smaller so it fits comfortably on any screen.  The 2:1 ratio gives crisp
+   rendering on high-DPI (retina) displays. */
+#orb-canvas {
+  width: 260px;
+  height: 260px;
+  display: block;
+  /* Subtle drop shadow that bleeds through the transparent canvas background */
+  filter: drop-shadow(0 0 32px rgba(80, 140, 255, 0.25));
+}
+
+
+/* ── Status text ───────────────────────────────────────────────────────────── */
+
+.status-text {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #7a84a8;
+  text-align: center;
+  min-height: 1.4em;       /* prevents layout shift when text changes */
+  transition: color 0.3s ease;
+}
+
+
+/* ── Transcript text (what the user said) ──────────────────────────────────── */
+
+.transcript-text {
+  font-size: 0.85rem;
+  color: #525a78;
+  text-align: center;
+  font-style: italic;
+  min-height: 1.3em;
+  max-width: 360px;
+  line-height: 1.5;
+}
+
+
+/* ── Reply text (streamed assistant sentences) ─────────────────────────────── */
+
+.reply-text {
+  font-size: 1.05rem;
+  color: #c8ceea;
+  text-align: center;
+  line-height: 1.7;
+  max-width: 400px;
+  min-height: 3em;         /* reserves space so the layout doesn't jump */
+}
+
+
+/* ── Push-to-talk button ───────────────────────────────────────────────────── */
+
+.talk-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid rgba(80, 140, 255, 0.4);
+  background: rgba(80, 140, 255, 0.12);
+  color: rgba(80, 140, 255, 0.9);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease,
+              box-shadow 0.2s ease, transform 0.1s ease;
+  /* Prevent text selection while holding the button */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.talk-btn:focus-visible {
+  outline: 2px solid #5090ff;
+  outline-offset: 4px;
+}
+
+/* Hover (only meaningful on non-touch) */
+.talk-btn:hover {
+  background: rgba(80, 140, 255, 0.20);
+  border-color: rgba(80, 140, 255, 0.7);
+}
+
+
+/* ── Button per-state overrides ────────────────────────────────────────────── */
+
+/* recording — green mic, active glow */
+.talk-btn[data-state="recording"] {
+  background: rgba(60, 200, 100, 0.18);
+  border-color: rgba(60, 200, 100, 0.7);
+  color: rgba(60, 200, 100, 0.95);
+  box-shadow: 0 0 20px rgba(60, 200, 100, 0.35);
+  transform: scale(1.06);
+}
+
+/* processing (transcribing / thinking) — amber, pulsing */
+.talk-btn[data-state="processing"] {
+  background: rgba(255, 180, 40, 0.14);
+  border-color: rgba(255, 180, 40, 0.6);
+  color: rgba(255, 180, 40, 0.90);
+  box-shadow: 0 0 16px rgba(255, 180, 40, 0.25);
+  /* Subtle pulse animation while waiting for the server */
+  animation: btn-pulse 1.4s ease-in-out infinite;
+}
+
+/* speaking — purple */
+.talk-btn[data-state="speaking"] {
+  background: rgba(170, 70, 255, 0.16);
+  border-color: rgba(170, 70, 255, 0.65);
+  color: rgba(170, 70, 255, 0.92);
+  box-shadow: 0 0 18px rgba(170, 70, 255, 0.30);
+}
+
+
+/* ── Animations ────────────────────────────────────────────────────────────── */
+
+@keyframes btn-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 180, 40, 0.20); }
+  50%       { box-shadow: 0 0 26px rgba(255, 180, 40, 0.45); }
+}
+
+
+/* ── Responsive tweaks ─────────────────────────────────────────────────────── */
+
+@media (max-width: 360px) {
+  #orb-canvas {
+    width: 200px;
+    height: 200px;
+  }
+
+  .reply-text {
+    font-size: 0.95rem;
+  }
+}
