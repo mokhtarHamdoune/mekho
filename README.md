@@ -10,7 +10,7 @@ Mekho acts as a bridge between the user and underlying AI models, enabling voice
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/Mekho.git
+   git clone https://github.com/mokhtarHamdoune/mekho
    cd Mekho
    ```
 2. Set up a virtual environment:
@@ -32,3 +32,9 @@ uvicorn server.main:app
 ```
 
 The server will start, and you can interact with Mekho through its voice interface.
+
+## Objectives
+
+- Turn the assistant into an action-capable voice agent.
+- Keep the architecture simple enough to evolve.
+- Preserve a clear boundary between model, backend, and frontend.

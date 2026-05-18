@@ -22,6 +22,9 @@
  *                     "status"       → "transcribing" | "thinking" | "speaking" | "idle"
  *                     "transcript"   → what the user said
  *                     "reply_chunk"  → one sentence of the assistant reply
+ *
+ * To add tool/function calling, the server will emit a new message type
+ * e.g. { type: "tool_result", tool: "...", result: {...} }
  */
 
 'use strict';
@@ -78,18 +81,12 @@ function handleMessage(msg) {
     case 'status':      onStatus(msg.text);          break;
     case 'transcript':  ui.showTranscript(msg.text); break;
     case 'reply_chunk': ui.appendReply(msg.text);    break;
-    case 'cart_update': onCartUpdate(msg.cart);        break;
     default: console.warn('[WS] Unknown message type:', msg.type);
   }
 }
 
-/** @param {Object.<string, number>} cart  product_id → qty */
-function onCartUpdate(cart) {
-  console.info('[Cart]', cart);
-  // TODO: render cart in the UI when a cart panel is added
-}
-
 /** Maps server status strings → orb state + status label */
+
 function onStatus(status) {
   const STATES = {
     transcribing: ['processing', 'Transcribing…'],
