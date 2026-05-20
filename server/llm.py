@@ -1,4 +1,5 @@
 import re
+import json
 import logging
 from openai import AsyncOpenAI
 
@@ -10,6 +11,9 @@ from .config import (
     MAX_HISTORY_TURNS,
     SYSTEM_PROMPT,
 )
+# TODO: we should get rid of this self-registration
+from . import tools as _tools  # noqa: F401 — triggers self-registration of all tools
+from .tools.registry import registry
 
 logger = logging.getLogger(__name__)
 
@@ -72,35 +76,102 @@ class LLMSession:
     async def ask_stream(self, user_text: str):
         """Async generator — yields one *complete sentence* at a time as the
         LLM streams its reply.  Each yielded string is markdown-free and
-        ready for TTS."""
+        ready for TTS.  Tool calls are executed transparently and the loop
+        continues until the LLM returns a plain text response."""
         self.history.append({"role": "user", "content": user_text})
         self._trim()
 
-        stream = await _get_client().chat.completions.create(
-            model=HF_MODEL,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + self.history,
-            max_tokens=LLM_MAX_TOKENS,
-            stream=True,
-        )
 
-        buffer = ""
-        full_reply = ""
+        # LOOP because:
+        # When the LLM decides to call a tool, it won't stream text 
+        # — it returns a tool call block. 
+        # You execute it, inject the result into history, 
+        # then re-call to get the spoken confirmation (which we stream). 
+        # This is a two-step round trip but it's the standard pattern.
+        while True:
+            logger.debug("Sending conversation to LLM with %d messages", len(self.history))
+            stream = await _get_client().chat.completions.create(
+                model=HF_MODEL,
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}] + self.history,
+                max_tokens=LLM_MAX_TOKENS,
+                stream=True,
+                tools=registry.as_llm_schema(),
+                tool_choice="auto",
+            )
 
-        async for chunk in stream:
-            delta = chunk.choices[0].delta.content or ""
-            buffer += delta
-            full_reply += delta
+            # index -> {id, name, arguments}
+            tool_calls_acc: dict[int, dict] = {}
+            buffer = ""
+            full_reply = ""
+            finish_reason = None
 
-            sentences, buffer = _flush_sentences(buffer)
-            for sentence in sentences:
-                yield _strip_markdown(sentence)
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+                choice = chunk.choices[0]
+                finish_reason = choice.finish_reason or finish_reason
+                delta = choice.delta
 
-        # Yield whatever is left in the buffer (last sentence may lack trailing space)
-        if buffer.strip():
-            yield _strip_markdown(buffer.strip())
+                # Accumulate streamed tool-call fragments
+                if delta.tool_calls:
+                    for tc in delta.tool_calls:
+                        entry = tool_calls_acc.setdefault(
+                            tc.index, {"id": "", "name": "", "arguments": ""}
+                        )
+                        if tc.id:
+                            entry["id"] = tc.id
+                        if tc.function:
+                            if tc.function.name:
+                                entry["name"] += tc.function.name
+                            if tc.function.arguments:
+                                entry["arguments"] += tc.function.arguments
 
-        self.history.append({"role": "assistant", "content": _strip_markdown(full_reply)})
-        logger.debug("History length: %d messages", len(self.history))
+                # Stream text as sentences
+                content = delta.content or ""
+                buffer += content
+                full_reply += content
+
+                sentences, buffer = _flush_sentences(buffer)
+                for sentence in sentences:
+                    yield _strip_markdown(sentence)
+
+            if buffer.strip():
+                yield _strip_markdown(buffer.strip())
+
+            # No tool calls — conversation turn is complete
+            if finish_reason != "tool_calls" or not tool_calls_acc:
+                self.history.append({"role": "assistant", "content": _strip_markdown(full_reply)})
+                logger.debug("History length: %d messages", len(self.history))
+                break
+
+            # Append the assistant's tool-call message
+            self.history.append({
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {"name": tc["name"], "arguments": tc["arguments"]},
+                    }
+                    for tc in tool_calls_acc.values()
+                ],
+            })
+
+            # Execute each tool and append the results
+            for tc in tool_calls_acc.values():
+                try:
+                    args = json.loads(tc["arguments"])
+                    result = registry.get(tc["name"]).run(**args)
+                except Exception as exc:
+                    result = {"error": str(exc)}
+                self.history.append({
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": json.dumps(result),
+                })
+
+            logger.debug("Tool calls executed, looping back to LLM.")
 
     def clear(self) -> None:
         """Reset the conversation (e.g. user says 'start over')."""

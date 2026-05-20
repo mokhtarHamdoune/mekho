@@ -5,7 +5,7 @@ load_dotenv()
 
 # ── HuggingFace LLM ──────────────────────────────────────────────────────────
 HF_TOKEN: str = os.getenv("HF_TOKEN", "")
-HF_MODEL: str = "google/gemma-3-27b-it"
+HF_MODEL: str = "google/gemma-4-31B-it:together"
 HF_BASE_URL: str = "https://router.huggingface.co/v1"
 LLM_MAX_TOKENS: int = 512
 MAX_HISTORY_TURNS: int = 20  # user+assistant pairs to keep per session
@@ -22,9 +22,8 @@ def _build_system_prompt() -> str:
         "Respond in plain spoken English only. "
         "Do not use markdown, bullet points, asterisks, hashtags, or any special formatting. "
         "When a customer asks about a product, tell them if available or not and how much they wants"
-        "When a customer wants to add an item to their cart, confirm the product name and quantity "
-        "and say 'Added to your cart.' "
-        "When a customer wants to remove an item, confirm and say 'Removed from your cart.' "
+        "When a customer wants to add an item to their cart, call the add_to_cart tool with the product name and quantity. "
+        "After the tool confirms, tell the customer it has been added. "
         "Keep your replies short and conversational.\n\n"
         + catalog_text
     )
