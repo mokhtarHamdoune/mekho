@@ -26,6 +26,7 @@ from fastapi.responses import FileResponse
 
 from . import transcriber, tts
 from .llm import LLMSession
+from .events import ToolEventEmitter
 from .config import HOST, PORT
 
 logging.basicConfig(
@@ -49,10 +50,28 @@ async def index() -> FileResponse:
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
 
+class _WSEmitter:
+    """Concrete ToolEventEmitter — forwards tool results to the browser over WS.
+
+    Lives in main.py because it is the only place that knows about WebSocket.
+    LLMSession only knows about the ToolEventEmitter Protocol.
+    """
+
+    def __init__(self, ws: WebSocket) -> None:
+        self._ws = ws
+
+    async def on_tool_result(self, tool_name: str, result: dict) -> None:
+        await self._ws.send_text(json.dumps({
+            "type": "tool_result",
+            "tool": tool_name,
+            "result": result,
+        }))
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
-    session = LLMSession()
+    session = LLMSession(emitter=_WSEmitter(websocket))
     loop = asyncio.get_event_loop()
     logger.info("Client connected  [%s]", websocket.client)
 

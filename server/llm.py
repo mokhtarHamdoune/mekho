@@ -1,5 +1,7 @@
 import re
 import json
+import asyncio
+import functools
 import logging
 from openai import AsyncOpenAI
 
@@ -14,6 +16,7 @@ from .config import (
 # TODO: we should get rid of this self-registration
 from . import tools as _tools  # noqa: F401 — triggers self-registration of all tools
 from .tools.registry import registry
+from .events import ToolEventEmitter
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +67,9 @@ def _flush_sentences(buffer: str) -> tuple[list[str], str]:
 class LLMSession:
     """One instance per WebSocket connection — owns the conversation history."""
 
-    def __init__(self) -> None:
+    def __init__(self, emitter: ToolEventEmitter | None = None) -> None:
         self.history: list[dict] = []
+        self._emitter = emitter
 
     def _trim(self) -> None:
         """Evict the oldest turns once the history exceeds MAX_HISTORY_TURNS pairs."""
@@ -162,9 +166,16 @@ class LLMSession:
             for tc in tool_calls_acc.values():
                 try:
                     args = json.loads(tc["arguments"])
-                    result = registry.get(tc["name"]).run(**args)
+                    # Run in a thread so blocking tools never freeze the event loop
+                    result: dict = await asyncio.to_thread(
+                        functools.partial(registry.get(tc["name"]).run, **args)
+                    )
                 except Exception as exc:
                     result = {"error": str(exc)}
+
+                if self._emitter is not None:
+                    await self._emitter.on_tool_result(tc["name"], result)
+
                 self.history.append({
                     "role": "tool",
                     "tool_call_id": tc["id"],

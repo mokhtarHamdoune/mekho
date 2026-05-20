@@ -23,6 +23,6 @@ class BaseTool(ABC):
         ...
 
     @abstractmethod
-    def run(self, **kwargs: Any) -> Any:
-        """Execute the tool and return a result."""
+    def run(self, **kwargs: Any) -> dict:
+        """Execute the tool and return a JSON-serialisable dict result."""
         ...
