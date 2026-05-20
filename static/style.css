@@ -180,6 +180,119 @@ body {
 }
 
 
+/* ── Cart sidebar ──────────────────────────────────────────────────────────── */
+
+.cart {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  width: 220px;
+  background: #12131f;
+  border: 1px solid rgba(80, 140, 255, 0.18);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.cart__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cart__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7a84a8;
+}
+
+.cart__badge {
+  background: rgba(230, 100, 40, 0.85);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+
+.cart__empty {
+  font-size: 0.82rem;
+  color: #3a4060;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.cart__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cart__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.88rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(80, 140, 255, 0.08);
+}
+
+.cart__item-name {
+  color: #c8ceea;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 0.5rem;
+}
+
+.cart__item-qty {
+  color: #7a84a8;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.cart__footer {
+  font-size: 0.78rem;
+  color: #525a78;
+  text-align: right;
+}
+
+/* Flash animation — orange glow when an item is added */
+.cart--flash {
+  animation: cart-flash 0.7s ease;
+}
+
+@keyframes cart-flash {
+  0%   { box-shadow: none; border-color: rgba(80, 140, 255, 0.18); }
+  40%  { box-shadow: 0 0 20px rgba(230, 140, 40, 0.5);
+         border-color: rgba(230, 140, 40, 0.7); }
+  100% { box-shadow: none; border-color: rgba(80, 140, 255, 0.18); }
+}
+
+/* Hide cart panel on very narrow screens to avoid overlap */
+@media (max-width: 600px) {
+  .cart {
+    position: static;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    order: -1;    /* show above the orb on mobile */
+  }
+}
+
+
 /* ── Responsive tweaks ─────────────────────────────────────────────────────── */
 
 @media (max-width: 360px) {

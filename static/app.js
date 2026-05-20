@@ -36,6 +36,7 @@
 const ui     = new UIController();
 const orb    = new OrbAnimator(document.getElementById('orb-canvas'), ui);
 const player = new AudioPlayer(orb);
+const cart   = new CartPanel();
 
 // =============================================================================
 // Recording state
@@ -81,7 +82,22 @@ function handleMessage(msg) {
     case 'status':      onStatus(msg.text);          break;
     case 'transcript':  ui.showTranscript(msg.text); break;
     case 'reply_chunk': ui.appendReply(msg.text);    break;
+    case 'tool_result': onToolResult(msg.tool, msg.result); break;
     default: console.warn('[WS] Unknown message type:', msg.type);
+  }
+}
+
+/**
+ * Dispatches tool results to the appropriate UI controller.
+ * Add a new case here for every new tool you want to reflect in the UI.
+ * @param {string} tool  The tool name (matches BaseTool.name)
+ * @param {object} result  The raw dict returned by tool.run()
+ */
+function onToolResult(tool, result) {
+  console.info('[Tool]', tool, result);
+  switch (tool) {
+    case 'add_to_cart': cart.addItem(result); break;
+    default: break;
   }
 }
 

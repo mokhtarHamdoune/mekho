@@ -49,10 +49,22 @@
       2. app.js  — orchestration: WebSocket, recording, playback, canvas animation
     Both use defer so the DOM is fully parsed before either script executes.
   -->
-  <!-- Load order matters: 1. ui.js  2. orb.js  3. audioPlayer.js  4. app.js -->
+  <!-- Cart sidebar — fixed to the right of the orb interface -->
+  <aside id="cart-panel" class="cart" aria-label="Shopping cart">
+    <header class="cart__header">
+      <span class="cart__title">Cart</span>
+      <span id="cart-badge" class="cart__badge" hidden>0</span>
+    </header>
+    <p id="cart-empty" class="cart__empty">No items yet</p>
+    <ul id="cart-list" class="cart__list" role="list"></ul>
+    <footer id="cart-total" class="cart__footer" hidden></footer>
+  </aside>
+
+  <!-- Load order: 1. ui.js  2. orb.js  3. audioPlayer.js  4. cart.js  5. app.js -->
   <script src="/static/ui.js"          defer></script>
   <script src="/static/orb.js"         defer></script>
   <script src="/static/audioPlayer.js" defer></script>
+  <script src="/static/cart.js"        defer></script>
   <script src="/static/app.js"         defer></script>
 </body>
 </html>
