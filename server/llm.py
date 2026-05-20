@@ -6,9 +6,9 @@ import logging
 from openai import AsyncOpenAI
 
 from .config import (
-    HF_TOKEN,
-    HF_MODEL,
-    HF_BASE_URL,
+    API_TOKEN,
+    AI_MODEL,
+    BASE_URL,
     LLM_MAX_TOKENS,
     MAX_HISTORY_TURNS,
     SYSTEM_PROMPT,
@@ -26,7 +26,7 @@ _client: AsyncOpenAI | None = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(base_url=HF_BASE_URL, api_key=HF_TOKEN)
+        _client = AsyncOpenAI(base_url=BASE_URL, api_key=API_TOKEN)
     return _client
 
 
@@ -95,7 +95,7 @@ class LLMSession:
         while True:
             logger.debug("Sending conversation to LLM with %d messages", len(self.history))
             stream = await _get_client().chat.completions.create(
-                model=HF_MODEL,
+                model=AI_MODEL,
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}] + self.history,
                 max_tokens=LLM_MAX_TOKENS,
                 stream=True,

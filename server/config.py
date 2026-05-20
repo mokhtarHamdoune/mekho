@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── HuggingFace LLM ──────────────────────────────────────────────────────────
-HF_TOKEN: str = os.getenv("HF_TOKEN", "")
-HF_MODEL: str = "google/gemma-4-31B-it:together"
-HF_BASE_URL: str = "https://router.huggingface.co/v1"
+API_TOKEN: str = os.getenv("API_TOKEN", "")
+AI_MODEL: str = "gemma4:31b-cloud"
+# BASE_URL: str = "https://router.huggingface.co/v1"
+BASE_URL: str = "http://localhost:11434/v1/"
 LLM_MAX_TOKENS: int = 512
 MAX_HISTORY_TURNS: int = 20  # user+assistant pairs to keep per session
 
@@ -31,7 +32,7 @@ def _build_system_prompt() -> str:
 SYSTEM_PROMPT: str = _build_system_prompt()
 
 # ── Whisper (STT) ────────────────────────────────────────────────────────────
-WHISPER_MODEL_SIZE: str = "base"
+WHISPER_MODEL_SIZE: str = "small"
 WHISPER_SAMPLE_RATE: int = 16000  # Hz
 
 # ── Kokoro (TTS) ─────────────────────────────────────────────────────────────
