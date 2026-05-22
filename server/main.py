@@ -26,7 +26,6 @@ from fastapi.responses import FileResponse
 
 from . import transcriber, tts
 from .llm import LLMSession
-from .events import ToolEventEmitter
 from .config import HOST, PORT
 
 logging.basicConfig(

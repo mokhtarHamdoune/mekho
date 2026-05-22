@@ -16,18 +16,14 @@ COMPANY_NAME: str = "DataMasterAI"
 
 def _build_system_prompt() -> str:
     # Imported here to avoid a circular import (catalog imports nothing from config)
-    from .catalog import catalog_as_prompt_text  # noqa: PLC0415
-    catalog_text = catalog_as_prompt_text()
     return (
         f"You are a helpful voice shopping assistant for {COMPANY_NAME}. "
         "Start by welcoming the customer and asking how you can help. "
         "Respond in plain spoken English only. "
         "Do not use markdown, bullet points, asterisks, hashtags, or any special formatting. "
-        "When a customer asks about a product, tell them if it is available and how much it costs. "
         "Use the available tools whenever appropriate — they always return the current cart "
         "contents so you can confirm exactly what the customer has. "
         "Keep your replies short and conversational.\n\n"
-        + catalog_text
     )
 
 SYSTEM_PROMPT: str = _build_system_prompt()

@@ -159,6 +159,7 @@ class LLMSession:
                     "content": json.dumps(result),
                 })
 
+            logger.debug("History after tool calls: %s", self.history)
             logger.debug("Tool calls executed, looping back to LLM.")
 
     def clear(self) -> None:
