@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from .interfaces import BaseTool, ToolGroup
+from ..interfaces import BaseTool, ToolGroup
 
 
 class ToolRegistry:

@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from .interfaces import BaseTool, ToolGroup
+from ..interfaces import BaseTool, ToolGroup
 from .registry import registry
 
 logger = logging.getLogger(__name__)
