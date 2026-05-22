@@ -89,14 +89,16 @@ function handleMessage(msg) {
 
 /**
  * Dispatches tool results to the appropriate UI controller.
- * Add a new case here for every new tool you want to reflect in the UI.
+ * Both cart tools return a full `result.cart` snapshot — we hand it
+ * directly to CartPanel so the UI always mirrors server state exactly.
  * @param {string} tool  The tool name (matches BaseTool.name)
  * @param {object} result  The raw dict returned by tool.run()
  */
 function onToolResult(tool, result) {
   console.info('[Tool]', tool, result);
   switch (tool) {
-    case 'add_to_cart': cart.addItem(result); break;
+    case 'add_to_cart':      cart.setCart(result.cart, 'add');    break;
+    case 'remove_from_cart': cart.setCart(result.cart, 'remove'); break;
     default: break;
   }
 }

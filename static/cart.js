@@ -3,11 +3,11 @@
  *
  * Pure DOM controller for the shopping cart sidebar.
  * Has zero knowledge of WebSocket or any other transport.
- * Receives plain objects from app.js and updates the DOM.
+ * Receives the server's ground-truth cart snapshot from app.js and renders it.
  *
  * Public API:
  *   const cart = new CartPanel();
- *   cart.addItem({ item: "apple", quantity: "2", status: "added" });
+ *   cart.setCart({ "Apple": "2", "Banana": "1" });  // from tool result.cart
  *   cart.clear();
  */
 
@@ -15,7 +15,7 @@
 
 class CartPanel {
   constructor() {
-    /** @type {{ [name: string]: number }} accumulated quantities */
+    /** @type {{ [name: string]: number }} mirror of server CartState */
     this._items = {};
 
     this._panel  = document.getElementById('cart-panel');
@@ -28,15 +28,19 @@ class CartPanel {
   // ── Public ─────────────────────────────────────────────────────────────────
 
   /**
-   * Add or accumulate an item coming from a tool_result message.
-   * @param {{ item: string, quantity: string, status: string }} result
+   * Replace the local cart with the server's authoritative snapshot.
+   * Called after every tool result — both add and remove.
+   * @param {{ [item: string]: string }} snapshot  e.g. { "Apple": "2" }
+   * @param {'add'|'remove'} [action]  drives the flash colour
    */
-  addItem({ item, quantity }) {
-    const q = parseFloat(quantity);
-    if (!item || isNaN(q)) return;
-    this._items[item] = (this._items[item] ?? 0) + q;
+  setCart(snapshot, action = 'add') {
+    this._items = {};
+    for (const [name, qty] of Object.entries(snapshot ?? {})) {
+      const q = parseFloat(qty);
+      if (name && !isNaN(q)) this._items[name] = q;
+    }
     this._render();
-    this._flash();
+    this._flash(action);
   }
 
   /** Remove all items and reset the panel to its empty state. */
@@ -81,11 +85,16 @@ class CartPanel {
     this._total.textContent  = `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
   }
 
-  /** Orange glow pulse — forces reflow so re-triggering always works. */
-  _flash() {
-    this._panel.classList.remove('cart--flash');
+  /**
+   * Glow pulse — orange for adds, blue for removes.
+   * Forces reflow so re-triggering always works.
+   * @param {'add'|'remove'} action
+   */
+  _flash(action) {
+    const cls = action === 'remove' ? 'cart--flash-remove' : 'cart--flash';
+    this._panel.classList.remove('cart--flash', 'cart--flash-remove');
     void this._panel.offsetWidth;   // force reflow
-    this._panel.classList.add('cart--flash');
-    setTimeout(() => this._panel.classList.remove('cart--flash'), 700);
+    this._panel.classList.add(cls);
+    setTimeout(() => this._panel.classList.remove(cls), 700);
   }
 }

@@ -281,6 +281,18 @@ body {
   100% { box-shadow: none; border-color: rgba(80, 140, 255, 0.18); }
 }
 
+/* Flash animation — blue glow when an item is removed */
+.cart--flash-remove {
+  animation: cart-flash-remove 0.7s ease;
+}
+
+@keyframes cart-flash-remove {
+  0%   { box-shadow: none; border-color: rgba(80, 140, 255, 0.18); }
+  40%  { box-shadow: 0 0 20px rgba(80, 140, 255, 0.5);
+         border-color: rgba(80, 140, 255, 0.8); }
+  100% { box-shadow: none; border-color: rgba(80, 140, 255, 0.18); }
+}
+
 /* Hide cart panel on very narrow screens to avoid overlap */
 @media (max-width: 600px) {
   .cart {
