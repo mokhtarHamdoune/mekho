@@ -20,7 +20,7 @@ def load() -> whisper.Whisper:
     return _model
 
 
-def transcribe_bytes(audio_bytes: bytes, suffix: str = ".webm") -> str:
+def transcribe_bytes(audio_bytes: bytes, suffix: str = ".wav") -> str:
     """Transcribe raw audio bytes (any format ffmpeg supports) to text.
 
     Writes to a temp file so Whisper's internal ffmpeg pipeline can decode it.

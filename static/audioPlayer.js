@@ -9,34 +9,42 @@
  * then use the returned AudioContext to wire the mic stream.
  *
  * Consumed by app.js:
- *   const player = new AudioPlayer(orb);
+ *   const player = new AudioPlayer();
+ *   player.addEventListener('playback-start', ({ detail: { analyser } }) => …);
+ *   player.addEventListener('playback-end', () => …);
  *   const audioCtx = player.ensureContext();  // call on first user gesture
  *   player.enqueue(wavArrayBuffer);           // called on each binary WS frame
+ *
+ * Events dispatched
+ * ─────────────────
+ *   'playback-start'  CustomEvent — detail: { analyser: AnalyserNode }
+ *                     fired each time a new WAV chunk starts playing.
+ *   'playback-end'    CustomEvent — fired when the queue fully drains.
  *
  * Playback flow
  * ─────────────
  *   enqueue(wav) → push to FIFO queue → if idle, call _playNext()
  *   _playNext()  → decodeAudioData → BufferSourceNode → AnalyserNode → destination
- *                → notifies OrbAnimator of the live analyser
+ *                → dispatches 'playback-start' with the live analyser
  *                → on 'ended' event, recurse to drain the queue
+ *                → dispatches 'playback-end' when queue is empty
  */
 
 'use strict';
 
-class AudioPlayer {
+class AudioPlayer extends EventTarget {
   /** FFT bin count for the playback AnalyserNode — must be a power of 2 */
   static FFT_SIZE = 256;
 
-  /**
-   * @param {OrbAnimator} orb  Receives setPlaybackAnalyser() calls so the orb
-   *                           can react to the speaking amplitude in real time.
-   */
-  constructor(orb) {
-    this._orb   = orb;
+  constructor() {
+    super();
     this._ctx   = null;   // AudioContext — created lazily on first user gesture
     this._queue = [];     // FIFO of WAV ArrayBuffers waiting to be decoded
     this._busy  = false;  // true while a BufferSourceNode is actively playing
   }
+
+  /** @returns {boolean} true while audio is actively playing */
+  get isBusy() { return this._busy; }
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -77,17 +85,14 @@ class AudioPlayer {
   /**
    * _playNext — decode and play the next WAV buffer in the queue.
    *
-   * The source node is wired through an AnalyserNode so OrbAnimator can read
-   * the real-time playback amplitude for the speaking animation.
-   *
-   * Recurses via the source's 'ended' event, creating a seamless
-   * sentence-by-sentence playback chain.
+   * Dispatches 'playback-start' with the live AnalyserNode when a chunk begins,
+   * and 'playback-end' when the queue fully drains.
+   * Recurses via the source's 'ended' event for seamless sentence-by-sentence playback.
    */
   async _playNext() {
     if (this._queue.length === 0) {
       this._busy = false;
-      // Tell the orb there's no longer any playback signal to track
-      this._orb.setPlaybackAnalyser(null);
+      this.dispatchEvent(new CustomEvent('playback-end'));
       return;
     }
 
@@ -99,18 +104,15 @@ class AudioPlayer {
       const source = this._ctx.createBufferSource();
       source.buffer = audioBuffer;
 
-      // Wire through an analyser so the orb reacts to playback amplitude
       const analyser = this._ctx.createAnalyser();
       analyser.fftSize = AudioPlayer.FFT_SIZE;
       source.connect(analyser);
       analyser.connect(this._ctx.destination);
-      this._orb.setPlaybackAnalyser(analyser);
+      this.dispatchEvent(new CustomEvent('playback-start', { detail: { analyser } }));
 
-      // Chain the next sentence automatically when this one finishes
       source.addEventListener('ended', () => this._playNext());
       source.start();
     } catch (err) {
-      // Skip a corrupted or empty chunk rather than stalling the whole queue
       console.error('[AudioPlayer] Failed to decode WAV chunk — skipping:', err);
       this._playNext();
     }

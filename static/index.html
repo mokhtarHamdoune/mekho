@@ -24,23 +24,6 @@
     <!-- Streamed assistant reply (filled sentence-by-sentence as audio plays) -->
     <p id="reply-text" class="reply-text"></p>
 
-    <!-- Push-to-talk button — hold to record, release to send.
-         The data-state attribute ("idle" | "recording" | "processing" | "speaking")
-         is kept in sync by app.js so CSS can style each state independently. -->
-    <button
-      id="talk-btn"
-      class="talk-btn"
-      aria-label="Push to talk"
-      data-state="idle"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-           fill="currentColor" width="28" height="28" aria-hidden="true">
-        <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/>
-        <path d="M19 10a1 1 0 0 1 2 0 9 9 0 0 1-18 0 1 1 0 1 1 2 0 7 7 0 0 0 14 0z"/>
-        <path d="M11 20h2v3h-2z"/>
-      </svg>
-    </button>
-
   </main>
 
   <!--
@@ -60,11 +43,20 @@
     <footer id="cart-total" class="cart__footer" hidden></footer>
   </aside>
 
-  <!-- Load order: 1. ui.js  2. orb.js  3. audioPlayer.js  4. cart.js  5. app.js -->
-  <script src="/static/ui.js"          defer></script>
-  <script src="/static/orb.js"         defer></script>
-  <script src="/static/audioPlayer.js" defer></script>
-  <script src="/static/cart.js"        defer></script>
-  <script src="/static/app.js"         defer></script>
+  <!--
+    Load order:
+      1. onnxruntime-web  — WASM runtime needed by Silero VAD
+      2. vad-web          — @ricky0123/vad-web (exposes global `vad`)
+      3. ui.js / orb.js / audioPlayer.js / cart.js / app.js
+    vad-web + ort are loaded *without* defer so they are ready before app.js runs.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.wasm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
+  <script src="/static/ui.js"            defer></script>
+  <script src="/static/orb.js"           defer></script>
+  <script src="/static/audioPlayer.js"   defer></script>
+  <script src="/static/vadController.js" defer></script>
+  <script src="/static/cart.js"          defer></script>
+  <script src="/static/app.js"           defer></script>
 </body>
 </html>

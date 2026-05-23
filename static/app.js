@@ -4,9 +4,10 @@
  * This file is intentionally thin.  All domain logic lives in the modules
  * loaded before it (see index.html):
  *
- *   ui.js          → UIController   — DOM updates, orb state, button styling
- *   orb.js         → OrbAnimator    — canvas drawing, amplitude animation
- *   audioPlayer.js → AudioPlayer    — WAV playback queue, AudioContext
+ *   ui.js             → UIController   — DOM updates, orb state, button styling
+ *   orb.js            → OrbAnimator    — canvas drawing, amplitude animation
+ *   audioPlayer.js    → AudioPlayer    — WAV playback queue, AudioContext
+ *   vadController.js  → VADController  — Silero VAD, WAV encoding, mic lifecycle
  *
  * What stays here
  * ───────────────
@@ -35,16 +36,52 @@
 
 const ui     = new UIController();
 const orb    = new OrbAnimator(document.getElementById('orb-canvas'), ui);
-const player = new AudioPlayer(orb);
+const player = new AudioPlayer();
+const voiceActivityCtrl    = new VADController();
 const cart   = new CartPanel();
 
+// ── AudioPlayer event wiring ──────────────────────────────────────────────────
+// AudioPlayer knows nothing about the orb or app state — it just fires events.
+
+player.addEventListener('playback-start', ({ detail: { analyser } }) => {
+  orb.setPlaybackAnalyser(analyser);
+});
+
+player.addEventListener('playback-end', () => {
+  orb.setPlaybackAnalyser(null);
+  if (pendingIdle) {
+    pendingIdle = false;
+    applyIdle();
+  }
+});
+
+// ── VAD event wiring ──────────────────────────────────────────────────
+// VADController knows nothing about WS or app state — it just fires events.
+
+voiceActivityCtrl.addEventListener('ready',        ()                      => ui.toIdle());
+voiceActivityCtrl.addEventListener('speech-start', ()                      => ui.toRecording());
+voiceActivityCtrl.addEventListener('speech-end',   ({ detail: { wav } })   => {
+  ui.clearTurn();
+  ws.send(wav);
+  ui.toTranscribing();
+});
+voiceActivityCtrl.addEventListener('misfire',      ()                      => ui.toIdle());
+voiceActivityCtrl.addEventListener('error',        ({ detail: { error } }) => {
+  console.error('[VAD]', error);
+  ui.updateStatus('Microphone access denied.');
+});
+
 // =============================================================================
-// Recording state
+// State
 // =============================================================================
 
-let mediaRecorder = null;   // active MediaRecorder, non-null only while recording
-let audioChunks   = [];     // Blob chunks accumulated from MediaRecorder
-let micStream     = null;   // MediaStream from getUserMedia
+let pendingIdle = false;  // true when server said idle but player is still busy
+
+// Called both when server sends idle AND when playback drains, whichever is last
+function applyIdle() {
+  ui.toIdle();
+  voiceActivityCtrl.resume();
+}
 
 // =============================================================================
 // WebSocket
@@ -55,8 +92,7 @@ ws.binaryType = 'arraybuffer';
 
 ws.addEventListener('open', () => {
   console.info('[WS] Connected');
-  ui.setOrbState('idle');
-  ui.updateStatus('Press and hold to talk');
+  ui.toIdle();
 });
 
 ws.addEventListener('close', () => {
@@ -103,118 +139,36 @@ function onToolResult(tool, result) {
   }
 }
 
-/** Maps server status strings → orb state + status label */
+/** Maps server status strings → orb state + status label, and pauses/resumes VAD */
 
 function onStatus(status) {
-  const STATES = {
-    transcribing: ['processing', 'Transcribing…'],
-    thinking:     ['processing', 'Thinking…'],
-    speaking:     ['speaking',   'Speaking…'],
-    idle:         ['idle',       'Press and hold to talk'],
-  };
-  const [orbState, label] = STATES[status] ?? ['idle', ''];
-  ui.setOrbState(orbState);
-  ui.updateStatus(label);
-}
+  console.log("Status: ", status);
 
-// =============================================================================
-// Push-to-talk recording
-// =============================================================================
-
-/**
- * startRecording — called on mousedown / touchstart.
- *
- * 1. Ensures the shared AudioContext exists (browser autoplay policy).
- * 2. Opens the microphone and wires it to an AnalyserNode for the orb.
- * 3. Starts the MediaRecorder buffering WebM/Opus chunks.
- */
-async function startRecording() {
-  // ensureContext() must be called inside a user gesture
-  const audioCtx = player.ensureContext();
-
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch (err) {
-    console.error('[Mic] Permission denied:', err);
-    ui.updateStatus('Microphone access denied.');
+  if (status === 'idle') {
+    if (player.isBusy) {
+      pendingIdle = true;
+    } else {
+      applyIdle();
+    }
     return;
   }
 
-  // Wire the mic stream to an AnalyserNode for the orb's recording animation.
-  // NOT connected to audioCtx.destination — that would cause speaker feedback.
-  const micSource = audioCtx.createMediaStreamSource(micStream);
-  const micAnalyser = audioCtx.createAnalyser();
-  micAnalyser.fftSize = 256;
-  micSource.connect(micAnalyser);
-  orb.setMicAnalyser(micAnalyser);
+  pendingIdle = false;
+  const ACTIONS = {
+    transcribing: () => ui.toTranscribing(),
+    thinking:     () => ui.toThinking(),
+    speaking:     () => ui.toSpeaking(),
+  };
+  ACTIONS[status]?.();
 
-  audioChunks = [];
-  mediaRecorder = new MediaRecorder(micStream);
-  mediaRecorder.addEventListener('dataavailable', (e) => {
-    if (e.data.size > 0) audioChunks.push(e.data);
-  });
-  mediaRecorder.addEventListener('stop', onRecordingStop);
-  mediaRecorder.start();
-
-  ui.setOrbState('recording');
-  ui.updateStatus('Recording…');
+  // Pause VAD while the server is active to avoid the assistant hearing itself
+  voiceActivityCtrl.pause();
 }
-
-/** stopRecording — called on mouseup / touchend / mouseleave. */
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-  }
-}
-
-/**
- * onRecordingStop — fired after MediaRecorder flushes all chunks.
- * Releases the mic, assembles the WebM blob, and sends it to the server.
- */
-async function onRecordingStop() {
-  micStream.getTracks().forEach((t) => t.stop());
-  micStream = null;
-  orb.setMicAnalyser(null);
-
-  const blob   = new Blob(audioChunks, { type: 'audio/webm' });
-  const buffer = await blob.arrayBuffer();
-
-  ui.clearTurn();           // clear previous turn's transcript + reply
-  ws.send(buffer);
-  ui.setOrbState('processing');
-  ui.updateStatus('Transcribing…');
-}
-
-// =============================================================================
-// Push-to-talk event listeners
-// =============================================================================
-
-ui.talkBtn.addEventListener('mousedown',  startRecording);
-ui.talkBtn.addEventListener('mouseup',    stopRecording);
-ui.talkBtn.addEventListener('mouseleave', stopRecording);  // released outside button
-ui.talkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
-ui.talkBtn.addEventListener('touchend',   stopRecording);
-
-// ── Ctrl key — hold to record, release to send ────────────────────────────────
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Control' && !e.repeat && mediaRecorder === null) {
-    startRecording();
-  }
-});
-document.addEventListener('keyup', (e) => {
-  if (e.key === 'Control') {
-    stopRecording();
-  }
-});
 
 // =============================================================================
 // Init
 // =============================================================================
 
+player.ensureContext();
+voiceActivityCtrl.start();
 orb.start();   // begin the rAF animation loop (shows breathing orb while WS connects)
-
-
-
-
-
-

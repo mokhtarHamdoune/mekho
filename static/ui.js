@@ -7,13 +7,18 @@
  *
  * Consumed by app.js:
  *   const ui = new UIController();
- *   ui.setOrbState('recording');
- *   ui.updateStatus('Recording…');
+ *   ui.toIdle()            // orb: idle,       label: 'Listening…'
+ *   ui.toRecording()       // orb: recording,  label: 'Listening…'
+ *   ui.toTranscribing()    // orb: processing, label: 'Transcribing…'
+ *   ui.toThinking()        // orb: processing, label: 'Thinking…'
+ *   ui.toSpeaking()        // orb: speaking,   label: 'Speaking…'
+ *   ui.toIdle('Custom')    // any method accepts an optional label override
+ *   ui.updateStatus(text)  // standalone label update — orb state unchanged
  *   ui.showTranscript('hello world');
  *   ui.appendReply('Sure, here is what I found.');
  *   ui.clearTurn();
  *
- * Orb state values (used by app.js canvas drawing and CSS button styling)
+ * Orb state values (set internally by the named methods above)
  * ──────────────────────────────────────────────────────────────────────────
  *   'idle'        → breathing pulse, blue
  *   'recording'   → reacts to mic amplitude, green
@@ -35,8 +40,6 @@ class UIController {
     /** @type {HTMLElement} Streamed assistant reply, filled sentence by sentence */
     this._replyEl = document.getElementById('reply-text');
 
-    /** @type {HTMLButtonElement} Push-to-talk button */
-    this._talkBtn = document.getElementById('talk-btn');
 
     // ── Internal state ───────────────────────────────────────────────────────
     /**
@@ -58,15 +61,6 @@ class UIController {
     return this._orbState;
   }
 
-  /**
-   * The push-to-talk button element — exposed so app.js can attach
-   * mousedown / touchstart event listeners without reaching into the DOM itself.
-   * @returns {HTMLButtonElement}
-   */
-  get talkBtn() {
-    return this._talkBtn;
-  }
-
   // ── State ──────────────────────────────────────────────────────────────────
 
   /**
@@ -79,7 +73,6 @@ class UIController {
    */
   setOrbState(state) {
     this._orbState = state;
-    this._talkBtn.dataset.state = state;
   }
 
   // ── Text updates ───────────────────────────────────────────────────────────
@@ -93,6 +86,25 @@ class UIController {
   updateStatus(text) {
     this._statusEl.textContent = text;
   }
+
+  // ── Named state transitions ────────────────────────────────────────────────
+  // Each method sets the orb state and status label together.
+  // Pass an optional label to override the default for that state.
+
+  /** @param {string} [label] */
+  toIdle(label = 'Listening…')       { this.setOrbState('idle');       this.updateStatus(label); }
+
+  /** @param {string} [label] */
+  toRecording(label = 'Listening…')  { this.setOrbState('recording');  this.updateStatus(label); }
+
+  /** @param {string} [label] */
+  toTranscribing(label = 'Transcribing…') { this.setOrbState('processing'); this.updateStatus(label); }
+
+  /** @param {string} [label] */
+  toThinking(label = 'Thinking…')    { this.setOrbState('processing'); this.updateStatus(label); }
+
+  /** @param {string} [label] */
+  toSpeaking(label = 'Speaking…')    { this.setOrbState('speaking');   this.updateStatus(label); }
 
   /**
    * showTranscript — display what Whisper heard for the current turn.
