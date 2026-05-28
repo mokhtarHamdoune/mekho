@@ -18,15 +18,14 @@ COMPANY_NAME: str = "DataMasterAI"
 
 # ── Language & TTS ────────────────────────────────────────────────────────────
 LANGUAGE: str = os.getenv("AGENT_LANGUAGE", "en")  # "en" or "ar"
-print(f"Configured agent language: {LANGUAGE}")
 TTS_PROVIDER: str = os.getenv("TTS_PROVIDER", "auto")  # "auto" | "kokoro" | "edge" | "supertonic"
 
 # ── Prompt loading ─────────────────────────────────────────────────────────---
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), f"../prompts/{LANGUAGE}.json")
+
 with open(PROMPT_PATH, encoding="utf-8") as f:
     _PROMPTS = json.load(f)
-print(f"Loaded prompts for language '{LANGUAGE}' from {PROMPT_PATH}")
-print("System prompt:", _PROMPTS["system"])
+
 SYSTEM_PROMPT: str = _PROMPTS["system"].replace("{company}", COMPANY_NAME)
 WELCOME_PROMPT: str = _PROMPTS.get("welcome", "")
 
@@ -36,10 +35,10 @@ WHISPER_SAMPLE_RATE: int = 16000  # Hz
 WHISPER_LANGUAGE: str = LANGUAGE
 
 # ── Kokoro (TTS) ─────────────────────────────────────────────────────────────
-KOKORO_LANG: str = "a"        # American English
-KOKORO_VOICE: str = "af_heart"
-KOKORO_SPEED: float = 1.0
-KOKORO_SAMPLE_RATE: int = 24000  # Hz
+KOKORO_LANG: str = os.getenv("KOKORO_LANG", "f" if LANGUAGE == "fr" else "a")       # American English
+KOKORO_VOICE: str = os.getenv("KOKORO_VOICE", "ff_siwis" if LANGUAGE == "fr" else "af_heart")
+KOKORO_SPEED: float = float(os.getenv("KOKORO_SPEED", "1.0"))
+KOKORO_SAMPLE_RATE: int = int(os.getenv("KOKORO_SAMPLE_RATE", "24000"))
 
 # ── Edge TTS (Arabic, etc) ─────────────────────────────────────────────────--
 EDGE_TTS_VOICE: str = os.getenv("EDGE_TTS_VOICE", "ar-EG-SalmaNeural")

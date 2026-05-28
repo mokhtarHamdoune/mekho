@@ -7,7 +7,7 @@ from .supertonic_provider import SupertonicProvider
 def get_provider():
     provider = TTS_PROVIDER
     if provider == "auto":
-        provider = "kokoro" if LANGUAGE == "en" else "supertonic"
+        provider = "kokoro" if LANGUAGE in ("en","fr", ) else "supertonic"  # ar
     if provider == "kokoro":
         return KokoroProvider()
     if provider == "edge":
