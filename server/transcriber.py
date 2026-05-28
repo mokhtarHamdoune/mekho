@@ -28,11 +28,12 @@ def transcribe_bytes(audio_bytes: bytes, suffix: str = ".wav") -> str:
     """
     model = load()
     tmp_path: str | None = None
+    from .config import WHISPER_LANGUAGE
     try:
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(audio_bytes)
             tmp_path = tmp.name
-        result = model.transcribe(tmp_path, fp16=False)
+        result = model.transcribe(tmp_path, language=WHISPER_LANGUAGE, fp16=False)
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
